@@ -11,5 +11,10 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "openai": "^4.58.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "@types/react": "^18.2.73",
+    "@types/node": "^20.14.10"
   }
 }
