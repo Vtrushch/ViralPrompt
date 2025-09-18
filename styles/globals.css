@@ -2,5 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* плавні transition-и за замовчуванням */
-* { @apply transition-colors duration-200; }
+/* (необов’язково) шрифт + дрібні глобальні стилі */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+html,body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+*{transition:color .2s,background-color .2s,border-color .2s,box-shadow .2s}
