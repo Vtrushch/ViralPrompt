@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* плавні transition-и за замовчуванням */
+* { @apply transition-colors duration-200; }
