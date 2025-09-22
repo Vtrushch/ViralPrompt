@@ -30,14 +30,46 @@ export default function Home() {
   }
 
   const scrollTo = (id: string) =>
+    typeof window !== "undefined" &&
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
   return (
     <>
       <Head>
-        <title>ViralPrompt.ai — Viral TikTok/Reels scripts</title>
-        <meta name="description" content="AI that generates high-converting short-form scripts in seconds." />
-        <link rel="preconnect" href="https://fonts.gstatic.com" />
+        {/* Core SEO */}
+        <title>ViralPrompt.ai – AI TikTok & Reels Script Generator</title>
+        <meta
+          name="description"
+          content="Generate viral TikTok and Instagram Reels scripts instantly with AI. Hooks, CTAs, and proven formats for creators and brands."
+        />
+        <meta
+          name="keywords"
+          content="AI TikTok script generator, Instagram Reels AI, viral content ideas, social media AI tool"
+        />
+        <meta name="robots" content="index,follow" />
+        <link rel="canonical" href="https://viralprompt.ai/" />
+
+        {/* Open Graph */}
+        <meta property="og:title" content="ViralPrompt.ai – AI TikTok & Reels Script Generator" />
+        <meta
+          property="og:description"
+          content="Create viral short-form scripts in seconds with AI."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://viralprompt.ai" />
+        <meta property="og:image" content="https://viralprompt.ai/og-image.png" />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="ViralPrompt.ai – AI TikTok & Reels Script Generator" />
+        <meta
+          name="twitter:description"
+          content="Generate viral TikTok/Reels scripts instantly."
+        />
+        <meta name="twitter:image" content="https://viralprompt.ai/og-image.png" />
+
+        {/* Icons */}
+        <link rel="icon" href="/favicon.ico" />
       </Head>
 
       {/* BG gradient */}
@@ -65,7 +97,7 @@ export default function Home() {
               New: Script formats for listicle • myth-busting • tutorial
             </span>
             <h1 className="mx-auto max-w-3xl text-5xl font-extrabold leading-tight text-title md:text-6xl">
-              Generate <span className="bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">viral</span> TikTok & Reels scripts
+              Generate <span className="bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">viral</span> TikTok &amp; Reels scripts
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-lg text-body">
               Describe your offer. Get hooks, structure, and CTA ready to post in seconds.
@@ -196,6 +228,23 @@ export default function Home() {
                 </details>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* SEO text block */}
+        <section className="px-5 pb-16">
+          <div className="mx-auto max-w-4xl text-sm leading-6 text-body">
+            <h3 className="mb-2 text-base font-semibold text-title">Why ViralPrompt.ai?</h3>
+            <p className="mb-2">
+              ViralPrompt.ai is an AI TikTok &amp; Instagram Reels script generator for creators, small businesses,
+              and agencies. Describe your product or offer and get hooks, structure, and CTA that are optimized for
+              retention and discovery. Formats include listicle, tutorial, POV, myth-busting, and storytime.
+            </p>
+            <p className="mb-2">
+              Unlike generic chat tools, ViralPrompt.ai focuses on short-form video performance: tone consistency,
+              hashtag suggestions, and export in clean Markdown or plain text. Start free and upgrade when you need
+              more generations or team features.
+            </p>
           </div>
         </section>
 
