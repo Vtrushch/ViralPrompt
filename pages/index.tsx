@@ -1,5 +1,54 @@
 import Head from "next/head";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+/** --- простий евристичний скорінг результату --- */
+function computeViralScore(text: string) {
+  // базові індикатори: наявність секцій, кількість "beat"-ів, довжина, ключові слова
+  const t = text || "";
+  const hasHook = /(^|\n)\s*HOOK\s*:|(^|\n)\s*Hook\s*:/i.test(t);
+  const hasBeats = /(^|\n)\s*BEATS\s*:|(^|\n)\s*Beats\s*:/i.test(t);
+  const hasCTA = /(^|\n)\s*CTA\s*:|(^|\n)\s*Call\s*to\s*Action/i.test(t);
+  const hasTags = /(^|\n)\s*HASHTAGS\s*:|#\w+/.test(t);
+
+  // рахуємо кількість рядків у блоці BEATS (4–6 — ідеально для короткого відео)
+  const beatsMatch = t.match(/BEATS\s*:\s*([\s\S]*?)(\n[A-Z ]+?:|$)/i);
+  const beatsBlock = beatsMatch ? beatsMatch[1] : "";
+  const beatsLines = (beatsBlock.match(/^\s*[\-\d\.\)]/gm) || []).length;
+
+  // довжина (короткі рядки краще — < 1200 символів для 15–45с)
+  const len = t.length;
+  let score = 40;
+
+  if (hasHook) score += 15;
+  if (hasBeats) score += 15;
+  if (hasCTA) score += 15;
+
+  // 4–6 beats — найкраще
+  if (beatsLines >= 4 && beatsLines <= 6) score += 10;
+  else if (beatsLines >= 2 && beatsLines <= 8) score += 5;
+
+  // довжина
+  if (len > 200 && len < 1200) score += 5;
+  if (hasTags) score += 5;
+
+  // обмежимо 0..100
+  score = Math.max(0, Math.min(100, score));
+
+  const label =
+    score >= 75 ? "Good" :
+    score >= 60 ? "Decent" :
+    "Needs improvement";
+
+  const tips: string[] = [];
+  if (!hasHook) tips.push("Add a clear HOOK at the top.");
+  if (!(beatsLines >= 4 && beatsLines <= 6)) tips.push("Use 4–6 short BEATS (one action per line).");
+  if (!hasCTA) tips.push("End with a direct CTA.");
+  if (len <= 200) tips.push("Add a bit more detail to each beat.");
+  if (len >= 1200) tips.push("Make lines tighter to fit 15–45s.");
+  if (!hasTags) tips.push("Optionally add 5–10 hashtags.");
+
+  return { score, label, tips };
+}
 
 export default function Home() {
   // generator state
@@ -15,8 +64,11 @@ export default function Home() {
   const [duration, setDuration] = useState("15-30s");
   const [withTags, setWithTags] = useState(false);
 
-  // plan subscribe (якщо ти вже додавав раніше — лиши свій варіант)
+  // “Notify me” (залишаємо гак, якщо вже додавав форму)
   const [showPlan, setShowPlan] = useState<null | "starter" | "pro">(null);
+
+  // рахувати viral score тільки коли є результат
+  const viral = useMemo(() => (result ? computeViralScore(result) : null), [result]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,7 +89,7 @@ export default function Home() {
       if (!res.ok) {
         if (res.status === 402 || data?.overLimit) {
           setError(data?.error || "Free limit reached. Leave your email to get paid plans.");
-          // прикріпи форму, якщо вже додав SubscribeInline:
+          // Можеш відкрити форму підписки:
           // setShowPlan("starter");
           return;
         }
@@ -213,6 +265,32 @@ export default function Home() {
 
               {result && (
                 <>
+                  {/* Viral Score (Preview) */}
+                  {viral && (
+                    <div className="mt-3 flex items-center justify-between rounded-xl border border-black/10 bg-white p-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          viral.label === "Good"
+                            ? "bg-green-100 text-green-700"
+                            : viral.label === "Decent"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-red-100 text-red-700"
+                        }`}>
+                          {viral.label}
+                        </span>
+                        <span className="text-title font-semibold">Viral Score:</span>
+                        <span className="tabular-nums">{viral.score}/100</span>
+                      </div>
+                      <button
+                        onClick={() => alert(viral.tips.join("\n"))}
+                        className="rounded-lg border border-black/10 px-2 py-1 hover:bg-black/5"
+                        title="Show quick tips"
+                      >
+                        Tips
+                      </button>
+                    </div>
+                  )}
+
                   <pre className="mt-3 whitespace-pre-wrap rounded-xl border border-black/10 bg-gray-50 p-3 text-sm">
                     {result}
                   </pre>
@@ -228,6 +306,38 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Content Calendar Preview (Free) */}
+        <section id="calendar" className="px-5 py-12">
+          <div className="mx-auto max-w-3xl">
+            <div className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-soft">
+              <div className="mb-2 text-lg font-semibold text-title">Content Calendar (Preview)</div>
+              <p className="text-sm text-body mb-4">
+                Free plan includes just 1 day preview. Upgrade to Starter/Pro for full 30-day calendar.
+              </p>
+
+              {/* Day 1 preview (статичний тизер) */}
+              <div className="rounded-xl border border-black/10 bg-gray-50 p-4">
+                <div className="text-sm font-semibold text-title">Day 1</div>
+                <div className="text-body text-sm">
+                  🎥 Hook idea: “3 mistakes everyone makes with morning coffee”
+                  <br />
+                  🎯 CTA: “Follow for more coffee hacks”
+                </div>
+              </div>
+
+              {/* Upgrade Teaser */}
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => scrollTo("pricing")}
+                  className="rounded-xl border-2 border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
+                >
+                  Unlock full 30-day calendar →
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Pricing */}
         <section id="pricing" className="px-5 py-12">
           <div className="mx-auto max-w-6xl">
@@ -239,7 +349,7 @@ export default function Home() {
                 name="Free"
                 price="$0"
                 tagline="Test the quality"
-                features={["20 generations / mo", "Core formats", "Copy to clipboard"]}
+                features={["20 generations / mo", "Core formats", "Copy to clipboard", "Viral Score (preview)", "Calendar (1 day preview)"]}
                 cta="Try Free"
                 onClick={() => scrollTo("generator")}
               />
@@ -250,7 +360,7 @@ export default function Home() {
                   price="$9/mo"
                   highlight
                   tagline="For solo creators"
-                  features={["300 generations / mo", "All formats + hashtags", "30-day calendar", "Email support"]}
+                  features={["300 generations / mo", "All formats + hashtags", "30-day calendar", "Email support", "Full Viral Score + tips"]}
                   cta="Notify me"
                   onClick={() => setShowPlan("starter")}
                 />
@@ -264,7 +374,7 @@ export default function Home() {
                   name="Pro"
                   price="$29/mo"
                   tagline="For agencies"
-                  features={["Unlimited generations", "Team seats (up to 5)", "Brand voice profiles", "Priority support"]}
+                  features={["Unlimited generations", "Team seats (up to 5)", "Brand voice profiles", "Priority support", "Full Viral Score + A/B"]}
                   cta="Notify me"
                   onClick={() => setShowPlan("pro")}
                 />
@@ -274,12 +384,14 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Якщо вже маєш SubscribeInline — можеш показати форму тут за showPlan */}
             {showPlan && (
               <div className="mx-auto mt-6 max-w-md rounded-2xl border border-black/10 bg-white p-4 shadow-soft">
                 <div className="mb-2 text-lg font-semibold text-title">
                   {showPlan === "starter" ? "Get early access to Starter" : "Get early access to Pro"}
                 </div>
-                <SubscribeInline plan={showPlan} onDone={() => setShowPlan(null)} />
+                {/* <SubscribeInline plan={showPlan} onDone={() => setShowPlan(null)} /> */}
+                <p className="text-sm text-body">Email form coming here (subscribe component).</p>
                 <button onClick={() => setShowPlan(null)} className="mt-2 text-sm text-body hover:text-title">
                   Close
                 </button>
@@ -386,51 +498,5 @@ function Price({
         {cta}
       </button>
     </div>
-  );
-}
-
-/* ---------- email subscribe component ---------- */
-function SubscribeInline({ plan, onDone }: { plan: "starter" | "pro" | "limit"; onDone?: () => void }) {
-  const [email, setEmail] = useState("");
-  const [ok, setOk] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-    try {
-      const r = await fetch("/api/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, plan }),
-      });
-      if (!r.ok) throw new Error(await r.text());
-      setOk(true);
-      setEmail("");
-      if (onDone) setTimeout(onDone, 800);
-    } catch (e: any) {
-      setErr(e.message || "Failed");
-    }
-  }
-
-  return (
-    <form onSubmit={submit} className="grid gap-2">
-      <input
-        type="email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@email.com"
-        className="rounded-xl border border-black/10 px-3 py-2"
-      />
-      <button className="rounded-xl bg-primary px-4 py-2 font-semibold text-white hover:shadow-glow">
-        Notify me
-      </button>
-      {ok && <div className="text-sm text-green-600">Thanks! We’ll email you when it’s live.</div>}
-      {err && <div className="text-sm text-red-600">{err}</div>}
-      <div className="text-xs text-body opacity-70">
-        By submitting, you agree to receive product update emails. Unsubscribe anytime.
-      </div>
-    </form>
   );
 }
