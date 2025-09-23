@@ -8,6 +8,9 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState("");
 
+  // NEW: для модалки/форми підписки на плани
+  const [showPlan, setShowPlan] = useState<null | "starter" | "pro">(null);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -110,7 +113,6 @@ export default function Home() {
                 See features
               </button>
             </div>
-            {/* little trust row */}
             <div className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-6 opacity-70">
               <Badge text="No login required" />
               <Badge text="Free plan included" />
@@ -187,24 +189,51 @@ export default function Home() {
                 cta="Try Free"
                 onClick={() => scrollTo("generator")}
               />
-              <Price
-                name="Starter"
-                price="$9/mo"
-                highlight
-                tagline="For solo creators"
-                features={["300 generations / mo", "All formats + hashtags", "30-day calendar", "Email support"]}
-                cta="Choose Starter"
-                onClick={() => scrollTo("generator")}
-              />
-              <Price
-                name="Pro"
-                price="$29/mo"
-                tagline="For agencies"
-                features={["Unlimited generations", "Team seats (up to 5)", "Brand voice profiles", "Priority support"]}
-                cta="Choose Pro"
-                onClick={() => scrollTo("generator")}
-              />
+
+              {/* STARTER = Notify me */}
+              <div>
+                <Price
+                  name="Starter"
+                  price="$9/mo"
+                  highlight
+                  tagline="For solo creators"
+                  features={["300 generations / mo", "All formats + hashtags", "30-day calendar", "Email support"]}
+                  cta="Notify me"
+                  onClick={() => setShowPlan("starter")}
+                />
+                <p className="mt-2 text-center text-xs text-body opacity-70">
+                  Coming soon — leave your email to get details first.
+                </p>
+              </div>
+
+              {/* PRO = Notify me */}
+              <div>
+                <Price
+                  name="Pro"
+                  price="$29/mo"
+                  tagline="For agencies"
+                  features={["Unlimited generations", "Team seats (up to 5)", "Brand voice profiles", "Priority support"]}
+                  cta="Notify me"
+                  onClick={() => setShowPlan("pro")}
+                />
+                <p className="mt-2 text-center text-xs text-body opacity-70">
+                  Coming soon — leave your email to get details first.
+                </p>
+              </div>
             </div>
+
+            {/* Після карток — умовний блок із формою підписки */}
+            {showPlan && (
+              <div className="mx-auto mt-6 max-w-md rounded-2xl border border-black/10 bg-white p-4 shadow-soft">
+                <div className="mb-2 text-lg font-semibold text-title">
+                  {showPlan === "starter" ? "Get early access to Starter" : "Get early access to Pro"}
+                </div>
+                <SubscribeInline plan={showPlan} onDone={() => setShowPlan(null)} />
+                <button onClick={() => setShowPlan(null)} className="mt-2 text-sm text-body hover:text-title">
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
@@ -236,14 +265,17 @@ export default function Home() {
           <div className="mx-auto max-w-4xl text-sm leading-6 text-body">
             <h3 className="mb-2 text-base font-semibold text-title">Why ViralPrompt.ai?</h3>
             <p className="mb-2">
-              ViralPrompt.ai is an AI TikTok &amp; Instagram Reels script generator for creators, small businesses,
-              and agencies. Describe your product or offer and get hooks, structure, and CTA that are optimized for
+              ViralPrompt.ai is an <strong>AI TikTok script generator</strong> for creators, small businesses,
+              and agencies. Describe your product or offer and get hooks, structure, and CTA optimized for
               retention and discovery. Formats include listicle, tutorial, POV, myth-busting, and storytime.
             </p>
             <p className="mb-2">
-              Unlike generic chat tools, ViralPrompt.ai focuses on short-form video performance: tone consistency,
-              hashtag suggestions, and export in clean Markdown or plain text. Start free and upgrade when you need
-              more generations or team features.
+              Get ready-to-use <strong>Instagram Reels content ideas</strong>, hashtag suggestions, and export-ready
+              scripts (Markdown or plain text). Stay consistent without creative burnout.
+            </p>
+            <p className="mb-2">
+              Powered by <strong>viral social media AI</strong> patterns and brand voice controls to keep your
+              content on-message across platforms.
             </p>
           </div>
         </section>
@@ -303,5 +335,51 @@ function Price({
         {cta}
       </button>
     </div>
+  );
+}
+
+/* ---------- email subscribe component ---------- */
+function SubscribeInline({ plan, onDone }: { plan: "starter" | "pro" | "limit"; onDone?: () => void }) {
+  const [email, setEmail] = useState("");
+  const [ok, setOk] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    try {
+      const r = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, plan }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      setOk(true);
+      setEmail("");
+      if (onDone) setTimeout(onDone, 800);
+    } catch (e: any) {
+      setErr(e.message || "Failed");
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="grid gap-2">
+      <input
+        type="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@email.com"
+        className="rounded-xl border border-black/10 px-3 py-2"
+      />
+      <button className="rounded-xl bg-primary px-4 py-2 font-semibold text-white hover:shadow-glow">
+        Notify me
+      </button>
+      {ok && <div className="text-sm text-green-600">Thanks! We’ll email you when it’s live.</div>}
+      {err && <div className="text-sm text-red-600">{err}</div>}
+      <div className="text-xs text-body opacity-70">
+        By submitting, you agree to receive product update emails. Unsubscribe anytime.
+      </div>
+    </form>
   );
 }
