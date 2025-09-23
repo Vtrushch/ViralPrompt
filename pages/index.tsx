@@ -7,44 +7,51 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState("");
+  const [remaining, setRemaining] = useState<number | null>(null);
 
-  // NEW: для модалки/форми підписки на плани
+  // new controls
+  const [format, setFormat] = useState("Listicle");
+  const [tone, setTone] = useState("Friendly");
+  const [duration, setDuration] = useState("15-30s");
+  const [withTags, setWithTags] = useState(false);
+
+  // plan subscribe (якщо ти вже додавав раніше — лиши свій варіант)
   const [showPlan, setShowPlan] = useState<null | "starter" | "pro">(null);
 
- async function onSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  setLoading(true);
-  setError(null);
-  setResult("");
-  try {
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt /*, email: optional */ }),
-    });
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setResult("");
+    setRemaining(null);
 
-    const data = await res.json();
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, format, tone, duration, withTags }),
+      });
 
-    if (!res.ok) {
-      if (res.status === 402 || data?.overLimit) {
-        setError(data?.error || "Free limit reached. Leave your email to get paid plans.");
-        // тут можна відкрити твою форму підписки (як ми додали раніше через setShowPlan("limit"))
-        // setShowPlan("limit");
-        return;
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 402 || data?.overLimit) {
+          setError(data?.error || "Free limit reached. Leave your email to get paid plans.");
+          // прикріпи форму, якщо вже додав SubscribeInline:
+          // setShowPlan("starter");
+          return;
+        }
+        throw new Error(typeof data === "string" ? data : data?.error);
       }
-      throw new Error(typeof data === "string" ? data : data?.error);
+
+      setResult(data.result || "");
+      if (typeof data.remaining === "number") setRemaining(data.remaining);
+    } catch (err: any) {
+      setError(err.message || "Unknown error");
+    } finally {
+      setLoading(false);
     }
-
-    setResult(data.result || "");
-    // якщо хочеш показувати залишок:
-    // setRemaining(typeof data.remaining === "number" ? data.remaining : null);
-  } catch (err: any) {
-    setError(err.message || "Unknown error");
-  } finally {
-    setLoading(false);
   }
-}
-
 
   const scrollTo = (id: string) =>
     typeof window !== "undefined" &&
@@ -161,6 +168,7 @@ export default function Home() {
           <div className="mx-auto max-w-3xl">
             <div className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-soft backdrop-blur">
               <div className="mb-2 text-lg font-semibold text-title">Generator</div>
+
               <form onSubmit={onSubmit} className="grid gap-3">
                 <textarea
                   value={prompt}
@@ -169,6 +177,25 @@ export default function Home() {
                   placeholder="e.g., Grow subscriptions for a coffee box. Target: busy professionals. Tone: friendly. CTA: Get your first box."
                   className="min-h-[140px] w-full resize-vertical rounded-xl border border-black/10 bg-white/70 p-3 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-primary/40"
                 />
+
+                {/* Controls: Format / Tone / Duration */}
+                <div className="grid gap-2 md:grid-cols-3">
+                  <select value={format} onChange={(e)=>setFormat(e.target.value)} className="rounded-xl border border-black/10 p-2">
+                    {["Listicle","Tutorial","POV","Myth-busting","Storytime"].map(f => <option key={f}>{f}</option>)}
+                  </select>
+                  <select value={tone} onChange={(e)=>setTone(e.target.value)} className="rounded-xl border border-black/10 p-2">
+                    {["Friendly","Authoritative","Funny","Inspirational"].map(t => <option key={t}>{t}</option>)}
+                  </select>
+                  <select value={duration} onChange={(e)=>setDuration(e.target.value)} className="rounded-xl border border-black/10 p-2">
+                    {["15-30s","30-45s","45-60s"].map(d => <option key={d}>{d}</option>)}
+                  </select>
+                </div>
+
+                <label className="mt-1 inline-flex items-center gap-2 text-sm text-body">
+                  <input type="checkbox" checked={withTags} onChange={(e)=>setWithTags(e.target.checked)} />
+                  Include hashtags
+                </label>
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -176,13 +203,26 @@ export default function Home() {
                 >
                   {loading ? "Generating..." : "Generate"}
                 </button>
+
+                {typeof remaining === "number" && (
+                  <div className="text-xs text-body">Remaining this month: {remaining}</div>
+                )}
               </form>
 
               {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
+
               {result && (
-                <pre className="mt-3 whitespace-pre-wrap rounded-xl border border-black/10 bg-gray-50 p-3 text-sm">
-                  {result}
-                </pre>
+                <>
+                  <pre className="mt-3 whitespace-pre-wrap rounded-xl border border-black/10 bg-gray-50 p-3 text-sm">
+                    {result}
+                  </pre>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(result)}
+                    className="mt-2 rounded-xl border border-black/10 px-3 py-2 text-sm hover:bg-black/5"
+                  >
+                    Copy to clipboard
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -204,7 +244,6 @@ export default function Home() {
                 onClick={() => scrollTo("generator")}
               />
 
-              {/* STARTER = Notify me */}
               <div>
                 <Price
                   name="Starter"
@@ -220,7 +259,6 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* PRO = Notify me */}
               <div>
                 <Price
                   name="Pro"
@@ -236,7 +274,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Після карток — умовний блок із формою підписки */}
             {showPlan && (
               <div className="mx-auto mt-6 max-w-md rounded-2xl border border-black/10 bg-white p-4 shadow-soft">
                 <div className="mb-2 text-lg font-semibold text-title">
