@@ -11,26 +11,40 @@ export default function Home() {
   // NEW: для модалки/форми підписки на плани
   const [showPlan, setShowPlan] = useState<null | "starter" | "pro">(null);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setResult("");
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setResult(data.result || "");
-    } catch (err: any) {
-      setError(err.message || "Unknown error");
-    } finally {
-      setLoading(false);
+ async function onSubmit(e: React.FormEvent) {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
+  setResult("");
+  try {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt /*, email: optional */ }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (res.status === 402 || data?.overLimit) {
+        setError(data?.error || "Free limit reached. Leave your email to get paid plans.");
+        // тут можна відкрити твою форму підписки (як ми додали раніше через setShowPlan("limit"))
+        // setShowPlan("limit");
+        return;
+      }
+      throw new Error(typeof data === "string" ? data : data?.error);
     }
+
+    setResult(data.result || "");
+    // якщо хочеш показувати залишок:
+    // setRemaining(typeof data.remaining === "number" ? data.remaining : null);
+  } catch (err: any) {
+    setError(err.message || "Unknown error");
+  } finally {
+    setLoading(false);
   }
+}
+
 
   const scrollTo = (id: string) =>
     typeof window !== "undefined" &&
