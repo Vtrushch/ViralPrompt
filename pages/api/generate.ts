@@ -17,24 +17,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
   try {
-    const prompt = (req.body?.prompt as string) || "";
-    // опціонально можеш передавати email з фронту: body: { prompt, email }
-    const email = ((req.body?.email as string) || "").trim().toLowerCase();
+    const {
+      prompt = "",
+      format = "Listicle",
+      tone = "Friendly",
+      duration = "15-30s",
+      withTags = false,
+      email = "",
+    } = (req.body || {}) as {
+      prompt?: string;
+      format?: string;
+      tone?: string;
+      duration?: string;
+      withTags?: boolean;
+      email?: string;
+    };
 
-    if (!prompt) return res.status(400).json({ error: "Empty prompt" });
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ error: "Empty prompt" });
+    }
 
     // ====== RATE LIMIT (20 / month) ======
     const ip =
       (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
       req.socket.remoteAddress ||
       "unknown";
-
-    // якщо є email — рахуємо по ньому, інакше по IP
-    const id = email || ip;
+    const id = (email || "").trim().toLowerCase() || ip;
     const month = new Date().toISOString().slice(0, 7); // YYYY-MM
     const key = `gen:${id}:${month}`;
 
-    // інкремент і встановлення TTL до початку наступного місяця
     const count = await redis.incr(key);
     if (count === 1) {
       const now = new Date();
@@ -42,7 +53,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const ttl = Math.floor((+nextMonth - +now) / 1000);
       await redis.expire(key, ttl);
     }
-
     if (count > FREE_LIMIT) {
       return res.status(402).json({
         error: `Free limit reached (${FREE_LIMIT}/month). Leave your email to get Starter/Pro updates.`,
@@ -52,6 +62,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     // ====== /RATE LIMIT ======
 
+    const sys = [
+      "You are a short-form scriptwriter for TikTok/IG Reels.",
+      "Return PLAIN TEXT with this structure:",
+      "- HOOK:",
+      "- BEATS: (numbered list of 4-6 short beats; each 1 line, shootable)",
+      "- CTA:",
+      withTags ? "- HASHTAGS: (5-10, comma-separated)" : "",
+      "",
+      `Constraints:`,
+      `- Duration: ${duration}`,
+      `- Tone: ${tone}`,
+      `- Format: ${format} (use typical patterns for this format)`,
+      "- Avoid emojis unless necessary. Focus on clarity, retention and velocity.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const user = `Brief: ${prompt}`;
+
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
@@ -59,15 +88,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       model,
       temperature: 0.7,
       messages: [
-        { role: "system", content: "You write concise, high-converting short-form scripts (TikTok/Reels). Return plain text." },
-        { role: "user", content: prompt }
-      ]
+        { role: "system", content: sys },
+        { role: "user", content: user },
+      ],
     });
 
     const text = completion.choices?.[0]?.message?.content || "";
     return res.status(200).json({
       result: text,
       remaining: Math.max(FREE_LIMIT - count, 0),
+      meta: { format, tone, duration, withTags },
     });
   } catch (e: any) {
     console.error(e);
