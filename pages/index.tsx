@@ -1,43 +1,31 @@
+// pages/index.tsx
 import Head from "next/head";
 import { useMemo, useState } from "react";
 
-/** --- простий евристичний скорінг результату --- */
+/** --- simple heuristic viral scoring --- */
 function computeViralScore(text: string) {
-  // базові індикатори: наявність секцій, кількість "beat"-ів, довжина, ключові слова
   const t = text || "";
   const hasHook = /(^|\n)\s*HOOK\s*:|(^|\n)\s*Hook\s*:/i.test(t);
   const hasBeats = /(^|\n)\s*BEATS\s*:|(^|\n)\s*Beats\s*:/i.test(t);
   const hasCTA = /(^|\n)\s*CTA\s*:|(^|\n)\s*Call\s*to\s*Action/i.test(t);
   const hasTags = /(^|\n)\s*HASHTAGS\s*:|#\w+/.test(t);
 
-  // рахуємо кількість рядків у блоці BEATS (4–6 — ідеально для короткого відео)
   const beatsMatch = t.match(/BEATS\s*:\s*([\s\S]*?)(\n[A-Z ]+?:|$)/i);
   const beatsBlock = beatsMatch ? beatsMatch[1] : "";
   const beatsLines = (beatsBlock.match(/^\s*[\-\d\.\)]/gm) || []).length;
 
-  // довжина (короткі рядки краще — < 1200 символів для 15–45с)
   const len = t.length;
   let score = 40;
-
   if (hasHook) score += 15;
   if (hasBeats) score += 15;
   if (hasCTA) score += 15;
-
-  // 4–6 beats — найкраще
   if (beatsLines >= 4 && beatsLines <= 6) score += 10;
   else if (beatsLines >= 2 && beatsLines <= 8) score += 5;
-
-  // довжина
   if (len > 200 && len < 1200) score += 5;
   if (hasTags) score += 5;
 
-  // обмежимо 0..100
   score = Math.max(0, Math.min(100, score));
-
-  const label =
-    score >= 75 ? "Good" :
-    score >= 60 ? "Decent" :
-    "Needs improvement";
+  const label = score >= 75 ? "Good" : score >= 60 ? "Decent" : "Needs improvement";
 
   const tips: string[] = [];
   if (!hasHook) tips.push("Add a clear HOOK at the top.");
@@ -51,23 +39,20 @@ function computeViralScore(text: string) {
 }
 
 export default function Home() {
-  // generator state
+  const [mode, setMode] = useState<"products" | "creators">("products");
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState("");
   const [remaining, setRemaining] = useState<number | null>(null);
 
-  // new controls
   const [format, setFormat] = useState("Listicle");
   const [tone, setTone] = useState("Friendly");
   const [duration, setDuration] = useState("15-30s");
   const [withTags, setWithTags] = useState(false);
 
-  // “Notify me” (залишаємо гак, якщо вже додавав форму)
   const [showPlan, setShowPlan] = useState<null | "starter" | "pro">(null);
 
-  // рахувати viral score тільки коли є результат
   const viral = useMemo(() => (result ? computeViralScore(result) : null), [result]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -81,7 +66,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, format, tone, duration, withTags }),
+        body: JSON.stringify({ mode, prompt, format, tone, duration, withTags }),
       });
 
       const data = await res.json();
@@ -89,8 +74,6 @@ export default function Home() {
       if (!res.ok) {
         if (res.status === 402 || data?.overLimit) {
           setError(data?.error || "Free limit reached. Leave your email to get paid plans.");
-          // Можеш відкрити форму підписки:
-          // setShowPlan("starter");
           return;
         }
         throw new Error(typeof data === "string" ? data : data?.error);
@@ -112,39 +95,29 @@ export default function Home() {
   return (
     <>
       <Head>
-        {/* Core SEO */}
-        <title>ViralPrompt.ai – AI TikTok & Reels Script Generator</title>
+        <title>ViralPrompt.ai – AI TikTok & Reels Script Generator (Products & Creators)</title>
         <meta
           name="description"
-          content="Generate viral TikTok and Instagram Reels scripts instantly with AI. Hooks, CTAs, and proven formats for creators and brands."
+          content="Generate viral TikTok/Instagram Reels scripts for products AND daily creator ideas. Hooks, BEATS, CTA, hashtags, calendar — all with AI."
         />
         <meta
           name="keywords"
-          content="AI TikTok script generator, Instagram Reels AI, viral content ideas, social media AI tool"
+          content="AI TikTok script generator, Instagram Reels AI, video ideas for creators, daily trends, social media AI"
         />
         <meta name="robots" content="index,follow" />
         <link rel="canonical" href="https://viralprompt.ai/" />
 
-        {/* Open Graph */}
         <meta property="og:title" content="ViralPrompt.ai – AI TikTok & Reels Script Generator" />
-        <meta
-          property="og:description"
-          content="Create viral short-form scripts in seconds with AI."
-        />
+        <meta property="og:description" content="For products and creators: generate scripts, ideas, hashtags & more." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://viralprompt.ai" />
         <meta property="og:image" content="https://viralprompt.ai/og-image.png" />
 
-        {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="ViralPrompt.ai – AI TikTok & Reels Script Generator" />
-        <meta
-          name="twitter:description"
-          content="Generate viral TikTok/Reels scripts instantly."
-        />
+        <meta name="twitter:description" content="Generate scripts and daily video ideas with AI." />
         <meta name="twitter:image" content="https://viralprompt.ai/og-image.png" />
 
-        {/* Icons */}
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
@@ -170,13 +143,13 @@ export default function Home() {
           <div className="mx-auto max-w-5xl py-16 text-center">
             <span className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-xs text-body shadow-soft">
               <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-              New: Script formats for listicle • myth-busting • tutorial
+              🔥 Trend-aware prompts, refreshed daily
             </span>
             <h1 className="mx-auto max-w-3xl text-5xl font-extrabold leading-tight text-title md:text-6xl">
               Generate <span className="bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">viral</span> TikTok &amp; Reels scripts
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-lg text-body">
-              Describe your offer. Get hooks, structure, and CTA ready to post in seconds.
+              For products and personal channels. Trend-aware prompts refreshed daily so you never run out of ideas.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <button onClick={() => scrollTo("generator")} className="rounded-xl bg-primary px-5 py-3 font-semibold text-white shadow-soft hover:shadow-glow">
@@ -198,14 +171,16 @@ export default function Home() {
         <section id="features" className="px-5 py-12">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-center text-3xl font-bold text-title md:text-4xl">Everything you need to post daily</h2>
-            <p className="mx-auto mt-2 max-w-2xl text-center text-body">From scroll-stopping hooks to clear CTAs — stay consistent without creative burnout.</p>
+            <p className="mx-auto mt-2 max-w-2xl text-center text-body">
+              Scripts for products, ideas for creators, hashtags & calendar — stay consistent without burnout.
+            </p>
 
             <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
               {[
+                ["Daily trend focus", "Fresh, trend-aware prompts every day to keep ideas timely."],
                 ["Hooks that grab attention", "10+ hooks per idea, optimized for watch time."],
                 ["Proven formats", "Listicle, tutorial, POV, myth-busting, storytime."],
                 ["Brand voice", "Keep tone consistent across every script."],
-                ["SEO & hashtags", "Suggested keywords and tags for discovery."],
                 ["30-day calendar", "Daily prompts for a month of content."],
                 ["One-click export", "Copy Markdown or plain text anywhere."],
               ].map(([title, desc], i) => (
@@ -221,16 +196,44 @@ export default function Home() {
             <div className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-soft backdrop-blur">
               <div className="mb-2 text-lg font-semibold text-title">Generator</div>
 
+              {/* Mode switch */}
+              <div className="mb-2 inline-flex rounded-xl border border-black/10 bg-white/70 p-1">
+                <button
+                  type="button"
+                  onClick={() => setMode("products")}
+                  className={`px-3 py-1 rounded-lg text-sm ${mode==="products"?"bg-primary text-white":"text-title hover:bg-black/5"}`}
+                >
+                  🛍️ Products
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("creators")}
+                  className={`px-3 py-1 rounded-lg text-sm ${mode==="creators"?"bg-primary text-white":"text-title hover:bg-black/5"}`}
+                >
+                  🎥 Creators
+                </button>
+              </div>
+
+              {/* Microcopy per mode */}
+              <div className="mb-3 text-xs text-body">
+                {mode === "products"
+                  ? "Trend-aware script builder for products. Hooks/Beats/CTA tuned for watch-time."
+                  : "Daily ideas & trend-aware prompts for personal channels. Ask for 5 ideas or a short script."}
+              </div>
+
               <form onSubmit={onSubmit} className="grid gap-3">
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   required
-                  placeholder="e.g., Grow subscriptions for a coffee box. Target: busy professionals. Tone: friendly. CTA: Get your first box."
+                  placeholder={
+                    mode === "products"
+                      ? "e.g., Product: smart bottle; Audience: gym goers; Tone: energetic; CTA: Grab yours today"
+                      : "e.g., Niche: fitness vlogs; Style: humorous; Goal: daily ideas; Ask: 5 trending video ideas or a short script"
+                  }
                   className="min-h-[140px] w-full resize-vertical rounded-xl border border-black/10 bg-white/70 p-3 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-primary/40"
                 />
 
-                {/* Controls: Format / Tone / Duration */}
                 <div className="grid gap-2 md:grid-cols-3">
                   <select value={format} onChange={(e)=>setFormat(e.target.value)} className="rounded-xl border border-black/10 p-2">
                     {["Listicle","Tutorial","POV","Myth-busting","Storytime"].map(f => <option key={f}>{f}</option>)}
@@ -265,7 +268,6 @@ export default function Home() {
 
               {result && (
                 <>
-                  {/* Viral Score (Preview) */}
                   {viral && (
                     <div className="mt-3 flex items-center justify-between rounded-xl border border-black/10 bg-white p-3 text-sm">
                       <div className="flex items-center gap-2">
@@ -315,7 +317,6 @@ export default function Home() {
                 Free plan includes just 1 day preview. Upgrade to Starter/Pro for full 30-day calendar.
               </p>
 
-              {/* Day 1 preview (статичний тизер) */}
               <div className="rounded-xl border border-black/10 bg-gray-50 p-4">
                 <div className="text-sm font-semibold text-title">Day 1</div>
                 <div className="text-body text-sm">
@@ -325,7 +326,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Upgrade Teaser */}
               <div className="mt-4 text-center">
                 <button
                   onClick={() => scrollTo("pricing")}
@@ -349,7 +349,7 @@ export default function Home() {
                 name="Free"
                 price="$0"
                 tagline="Test the quality"
-                features={["20 generations / mo", "Core formats", "Copy to clipboard", "Viral Score (preview)", "Calendar (1 day preview)"]}
+                features={["20 generations / mo", "Core formats", "Copy to clipboard", "Viral Score (preview)", "Calendar (1 day preview)", "Both modes: Products & Creators"]}
                 cta="Try Free"
                 onClick={() => scrollTo("generator")}
               />
@@ -360,7 +360,7 @@ export default function Home() {
                   price="$9/mo"
                   highlight
                   tagline="For solo creators"
-                  features={["300 generations / mo", "All formats + hashtags", "30-day calendar", "Email support", "Full Viral Score + tips"]}
+                  features={["300 generations / mo", "All formats + hashtags", "30-day calendar", "Email support", "Full Viral Score + tips", "Both modes: Products & Creators"]}
                   cta="Notify me"
                   onClick={() => setShowPlan("starter")}
                 />
@@ -374,7 +374,7 @@ export default function Home() {
                   name="Pro"
                   price="$29/mo"
                   tagline="For agencies"
-                  features={["Unlimited generations", "Team seats (up to 5)", "Brand voice profiles", "Priority support", "Full Viral Score + A/B"]}
+                  features={["Unlimited generations", "Team seats (up to 5)", "Brand voice profiles", "Priority support", "Full Viral Score + A/B", "Both modes: Products & Creators"]}
                   cta="Notify me"
                   onClick={() => setShowPlan("pro")}
                 />
@@ -384,7 +384,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Якщо вже маєш SubscribeInline — можеш показати форму тут за showPlan */}
             {showPlan && (
               <div className="mx-auto mt-6 max-w-md rounded-2xl border border-black/10 bg-white p-4 shadow-soft">
                 <div className="mb-2 text-lg font-semibold text-title">
@@ -406,7 +405,8 @@ export default function Home() {
             <h2 className="text-center text-3xl font-bold text-title md:text-4xl">FAQ</h2>
             <div className="mt-6 divide-y divide-black/10 rounded-2xl border border-black/10 bg-white/70">
               {[
-                ["Do I need to record videos myself?", "Yes. We generate scripts/ideas; you record with your phone/editor."],
+                ["Do you track TikTok/IG trends in real time?", "We generate trend-aware prompts daily using proven short-form patterns (hooks, beats, CTAs). While we don’t tap private platform data, we keep ideas fresh and aligned with what works in short video."],
+                ["Do I need to record videos myself?", "Yes. We generate scripts and ideas; you record with your phone/editor."],
                 ["Can I try it for free?", "Yep — the Free plan includes 20 generations/month."],
                 ["Who is it for?", "Creators, small businesses, and agencies who want consistent short-form content."],
                 ["Can I cancel anytime?", "Yes, month-to-month billing. Cancel in one click."],
@@ -428,17 +428,16 @@ export default function Home() {
           <div className="mx-auto max-w-4xl text-sm leading-6 text-body">
             <h3 className="mb-2 text-base font-semibold text-title">Why ViralPrompt.ai?</h3>
             <p className="mb-2">
-              ViralPrompt.ai is an <strong>AI TikTok script generator</strong> for creators, small businesses,
-              and agencies. Describe your product or offer and get hooks, structure, and CTA optimized for
-              retention and discovery. Formats include listicle, tutorial, POV, myth-busting, and storytime.
+              ViralPrompt.ai is an <strong>AI TikTok script generator</strong> for products AND creators. Describe
+              your offer or niche and get hooks, structure, and CTA optimized for retention and discovery.
+            </p>
+            <p className="mb-2">
+              ViralPrompt.ai refreshes prompts daily to stay trend-aware. We don’t promise algorithm magic — we apply
+              proven short-form patterns so your ideas feel like “today,” not yesterday.
             </p>
             <p className="mb-2">
               Get ready-to-use <strong>Instagram Reels content ideas</strong>, hashtag suggestions, and export-ready
               scripts (Markdown or plain text). Stay consistent without creative burnout.
-            </p>
-            <p className="mb-2">
-              Powered by <strong>viral social media AI</strong> patterns and brand voice controls to keep your
-              content on-message across platforms.
             </p>
           </div>
         </section>
