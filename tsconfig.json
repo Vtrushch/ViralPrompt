@@ -8,9 +8,15 @@
     "jsx": "preserve",
     "strict": true,
     "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]        // <-- головне
+    },
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", ".next", "dist"]
 }
