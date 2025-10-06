@@ -1,6 +1,7 @@
 // pages/index.tsx
 import Head from "next/head";
 import { useMemo, useState } from "react";
+import { gtag } from "@/lib/ga";
 
 /** --- simple heuristic viral scoring --- */
 function computeViralScore(text: string) {
@@ -62,6 +63,15 @@ export default function Home() {
     setResult("");
     setRemaining(null);
 
+    // GA: почали генерацію
+    gtag("generate_click", {
+      mode,
+      format,
+      tone,
+      duration,
+      withTags,
+    });
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -74,6 +84,8 @@ export default function Home() {
       if (!res.ok) {
         if (res.status === 402 || data?.overLimit) {
           setError(data?.error || "Free limit reached. Leave your email to get paid plans.");
+          // GA: ліміт вичерпано
+          gtag("limit_reached", { mode });
           return;
         }
         throw new Error(typeof data === "string" ? data : data?.error);
@@ -81,8 +93,19 @@ export default function Home() {
 
       setResult(data.result || "");
       if (typeof data.remaining === "number") setRemaining(data.remaining);
+
+      // GA: успішна генерація
+      gtag("generate_success", {
+        mode,
+        length: (data.result || "").length,
+      });
     } catch (err: any) {
       setError(err.message || "Unknown error");
+      // GA: помилка
+      gtag("generate_error", {
+        mode,
+        message: err?.message || "unknown",
+      });
     } finally {
       setLoading(false);
     }
@@ -130,10 +153,10 @@ export default function Home() {
           <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
             <div className="font-extrabold tracking-tight">ViralPrompt.ai</div>
             <nav className="hidden gap-2 md:flex">
-              <button onClick={() => scrollTo("features")} className="rounded-xl px-3 py-2 text-body hover:bg-black/5">Features</button>
-              <button onClick={() => scrollTo("pricing")}  className="rounded-xl px-3 py-2 text-body hover:bg-black/5">Pricing</button>
-              <button onClick={() => scrollTo("faq")}       className="rounded-xl px-3 py-2 text-body hover:bg-black/5">FAQ</button>
-              <button onClick={() => scrollTo("generator")} className="rounded-xl bg-primary px-4 py-2 font-semibold text-white shadow-soft hover:shadow-glow">Try for Free</button>
+              <button onClick={() => { scrollTo("features"); gtag("nav_click", { to: "features" }); }} className="rounded-xl px-3 py-2 text-body hover:bg-black/5">Features</button>
+              <button onClick={() => { scrollTo("pricing"); gtag("nav_click", { to: "pricing" }); }}  className="rounded-xl px-3 py-2 text-body hover:bg-black/5">Pricing</button>
+              <button onClick={() => { scrollTo("faq"); gtag("nav_click", { to: "faq" }); }}       className="rounded-xl px-3 py-2 text-body hover:bg-black/5">FAQ</button>
+              <button onClick={() => { scrollTo("generator"); gtag("nav_click", { to: "generator" }); }} className="rounded-xl bg-primary px-4 py-2 font-semibold text-white shadow-soft hover:shadow-glow">Try for Free</button>
             </nav>
           </div>
         </header>
@@ -152,10 +175,16 @@ export default function Home() {
               For products and personal channels. Trend-aware prompts refreshed daily so you never run out of ideas.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              <button onClick={() => scrollTo("generator")} className="rounded-xl bg-primary px-5 py-3 font-semibold text-white shadow-soft hover:shadow-glow">
+              <button
+                onClick={() => { scrollTo("generator"); gtag("hero_cta", { to: "generator" }); }}
+                className="rounded-xl bg-primary px-5 py-3 font-semibold text-white shadow-soft hover:shadow-glow"
+              >
                 Try it now
               </button>
-              <button onClick={() => scrollTo("features")} className="rounded-xl border-2 border-primary px-5 py-3 font-semibold text-primary hover:bg-primary/10">
+              <button
+                onClick={() => { scrollTo("features"); gtag("hero_cta", { to: "features" }); }}
+                className="rounded-xl border-2 border-primary px-5 py-3 font-semibold text-primary hover:bg-primary/10"
+              >
                 See features
               </button>
             </div>
@@ -200,14 +229,14 @@ export default function Home() {
               <div className="mb-2 inline-flex rounded-xl border border-black/10 bg-white/70 p-1">
                 <button
                   type="button"
-                  onClick={() => setMode("products")}
+                  onClick={() => { setMode("products"); gtag("mode_switch", { mode: "products" }); }}
                   className={`px-3 py-1 rounded-lg text-sm ${mode==="products"?"bg-primary text-white":"text-title hover:bg-black/5"}`}
                 >
                   🛍️ Products
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMode("creators")}
+                  onClick={() => { setMode("creators"); gtag("mode_switch", { mode: "creators" }); }}
                   className={`px-3 py-1 rounded-lg text-sm ${mode==="creators"?"bg-primary text-white":"text-title hover:bg-black/5"}`}
                 >
                   🎥 Creators
@@ -284,7 +313,10 @@ export default function Home() {
                         <span className="tabular-nums">{viral.score}/100</span>
                       </div>
                       <button
-                        onClick={() => alert(viral.tips.join("\n"))}
+                        onClick={() => {
+                          alert(viral.tips.join("\n"));
+                          gtag("viral_tips_open", { mode, score: viral.score });
+                        }}
                         className="rounded-lg border border-black/10 px-2 py-1 hover:bg-black/5"
                         title="Show quick tips"
                       >
@@ -297,7 +329,10 @@ export default function Home() {
                     {result}
                   </pre>
                   <button
-                    onClick={() => navigator.clipboard.writeText(result)}
+                    onClick={() => {
+                      navigator.clipboard.writeText(result);
+                      gtag("copy_script", { mode, length: result.length });
+                    }}
                     className="mt-2 rounded-xl border border-black/10 px-3 py-2 text-sm hover:bg-black/5"
                   >
                     Copy to clipboard
@@ -328,7 +363,7 @@ export default function Home() {
 
               <div className="mt-4 text-center">
                 <button
-                  onClick={() => scrollTo("pricing")}
+                  onClick={() => { scrollTo("pricing"); gtag("calendar_unlock_cta"); }}
                   className="rounded-xl border-2 border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
                 >
                   Unlock full 30-day calendar →
@@ -351,7 +386,7 @@ export default function Home() {
                 tagline="Test the quality"
                 features={["20 generations / mo", "Core formats", "Copy to clipboard", "Viral Score (preview)", "Calendar (1 day preview)", "Both modes: Products & Creators"]}
                 cta="Try Free"
-                onClick={() => scrollTo("generator")}
+                onClick={() => { scrollTo("generator"); gtag("pricing_cta", { plan: "free" }); }}
               />
 
               <div>
@@ -362,7 +397,7 @@ export default function Home() {
                   tagline="For solo creators"
                   features={["300 generations / mo", "All formats + hashtags", "30-day calendar", "Email support", "Full Viral Score + tips", "Both modes: Products & Creators"]}
                   cta="Notify me"
-                  onClick={() => setShowPlan("starter")}
+                  onClick={() => { setShowPlan("starter"); gtag("pricing_cta", { plan: "starter" }); }}
                 />
                 <p className="mt-2 text-center text-xs text-body opacity-70">
                   Coming soon — leave your email to get details first.
@@ -376,7 +411,7 @@ export default function Home() {
                   tagline="For agencies"
                   features={["Unlimited generations", "Team seats (up to 5)", "Brand voice profiles", "Priority support", "Full Viral Score + A/B", "Both modes: Products & Creators"]}
                   cta="Notify me"
-                  onClick={() => setShowPlan("pro")}
+                  onClick={() => { setShowPlan("pro"); gtag("pricing_cta", { plan: "pro" }); }}
                 />
                 <p className="mt-2 text-center text-xs text-body opacity-70">
                   Coming soon — leave your email to get details first.
@@ -391,7 +426,10 @@ export default function Home() {
                 </div>
                 {/* <SubscribeInline plan={showPlan} onDone={() => setShowPlan(null)} /> */}
                 <p className="text-sm text-body">Email form coming here (subscribe component).</p>
-                <button onClick={() => setShowPlan(null)} className="mt-2 text-sm text-body hover:text-title">
+                <button
+                  onClick={() => { setShowPlan(null); gtag("notify_close", { plan: showPlan }); }}
+                  className="mt-2 text-sm text-body hover:text-title"
+                >
                   Close
                 </button>
               </div>
@@ -447,11 +485,11 @@ export default function Home() {
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-6 text-sm text-body md:flex-row">
             <div className="font-semibold text-title">ViralPrompt.ai</div>
             <div className="flex flex-wrap items-center gap-4">
-              <a className="hover:text-title" href="/terms">Terms</a>
-              <a className="hover:text-title" href="/privacy">Privacy</a>
-              <button onClick={() => scrollTo("pricing")} className="hover:text-title">Pricing</button>
-              <button onClick={() => scrollTo("features")} className="hover:text-title">Features</button>
-              <button onClick={() => scrollTo("faq")} className="hover:text-title">FAQ</button>
+              <a onClick={() => gtag("footer_click", { to: "terms" })} className="hover:text-title" href="/terms">Terms</a>
+              <a onClick={() => gtag("footer_click", { to: "privacy" })} className="hover:text-title" href="/privacy">Privacy</a>
+              <button onClick={() => { scrollTo("pricing"); gtag("footer_click", { to: "pricing" }); }} className="hover:text-title">Pricing</button>
+              <button onClick={() => { scrollTo("features"); gtag("footer_click", { to: "features" }); }} className="hover:text-title">Features</button>
+              <button onClick={() => { scrollTo("faq"); gtag("footer_click", { to: "faq" }); }} className="hover:text-title">FAQ</button>
             </div>
           </div>
         </footer>
@@ -461,13 +499,11 @@ export default function Home() {
 }
 
 /* ---------- small UI pieces ---------- */
-
 function Badge({ text }: { text: string }) {
   return (
     <span className="rounded-full border border-black/10 bg-white/70 px-3 py-1 text-xs shadow-soft">{text}</span>
   );
 }
-
 function Card({ title, desc }: { title: string; desc: string }) {
   return (
     <div className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-soft">
@@ -476,7 +512,6 @@ function Card({ title, desc }: { title: string; desc: string }) {
     </div>
   );
 }
-
 function Price({
   name, price, tagline, features, cta, onClick, highlight
 }: {
