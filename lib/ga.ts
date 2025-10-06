@@ -1,17 +1,26 @@
 // lib/ga.ts
-export const GA_ID = "G-G8E4N2BS1V";
+export const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_ID || "G-G8E4N2BS1V"; // твій ідентифікатор GA4
 
-// generic event
-export function gtag(
-  action: string,
-  params: Record<string, any> = {}
-) {
-  if (typeof window !== "undefined" && (window as any).gtag) {
-    (window as any).gtag("event", action, params);
+declare global {
+  interface Window {
+    gtag: (...args: any[]) => void;
   }
 }
 
-// page_view (викликаємо в _app.tsx)
-export function pageview(url: string) {
-  gtag("page_view", { page_path: url });
-}
+export const pageview = (url: string) => {
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("config", GA_MEASUREMENT_ID, {
+      page_path: url,
+    });
+  }
+};
+
+export const gaEvent = (
+  action: string,
+  params?: Record<string, any>
+) => {
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", action, params);
+  }
+};
