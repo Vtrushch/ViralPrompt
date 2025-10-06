@@ -1,11 +1,9 @@
 // pages/_app.tsx
 import type { AppProps } from "next/app";
-import { useEffect } from "react";
 import { useRouter } from "next/router";
-import { pageview } from "@/lib/ga";
-
-// Якщо в тебе є глобальні стилі — імпортуй тут:
-// import "@/styles/globals.css";
+import { useEffect } from "react";
+import Script from "next/script";
+import { pageview, GA_MEASUREMENT_ID } from "@/lib/ga";
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -13,12 +11,32 @@ export default function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {
     const handleRouteChange = (url: string) => pageview(url);
     router.events.on("routeChangeComplete", handleRouteChange);
-    // початковий перегляд
+    // Для першого завантаження
     pageview(window.location.pathname + window.location.search);
     return () => {
       router.events.off("routeChangeComplete", handleRouteChange);
     };
   }, [router.events]);
 
-  return <Component {...pageProps} />;
+  return (
+    <>
+      {/* підгружаємо gtag.js */}
+      <Script
+        id="gtag-src"
+        src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+        strategy="afterInteractive"
+      />
+      <Script id="gtag-init" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GA_MEASUREMENT_ID}', {
+            page_path: window.location.pathname
+          });
+        `}
+      </Script>
+      <Component {...pageProps} />
+    </>
+  );
 }
